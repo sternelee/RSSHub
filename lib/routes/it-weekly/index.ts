@@ -1,4 +1,5 @@
-const parser = require('@/utils/rss-parser');
+import { Route } from '@/types';
+import parser from '@/utils/rss-parser';
 
 // 程序猿周报合集
 
@@ -35,11 +36,11 @@ const URLs = {
     esnext: 'http://feeds.feedburner.com/EsnextNews',
 };
 
-module.exports = async (ctx) => {
-    const type = ctx.params.type || 'javascript';
+async function handler(ctx) {
+    const type = ctx.req.param('caty') || 'javascript';
     const url = URLs[type];
     const { items, ...rest } = await parser.parseURL(url);
-    ctx.state.data = {
+    return {
         ...rest,
         item: items.map((item) => ({
             title: item.title,
@@ -48,4 +49,25 @@ module.exports = async (ctx) => {
             link: item.link,
         })),
     };
+}
+
+export const route: Route = {
+    path: '/:caty',
+    categories: ['it'],
+    example: '/it-weekly/javascript',
+    parameters: { caty: '类别' },
+    features: {
+        requireConfig: false,
+        requirePuppeteer: false,
+        antiCrawler: false,
+        supportBT: false,
+        supportPodcast: false,
+        supportScihub: false,
+    },
+    name: '分类资讯',
+    maintainers: ['sternelee'],
+    handler,
+    description: `| javascript      | nodejs     | frontend      | react-status      | golang      | serverless      | deno      | tailwind     | css     |
+  | ------- | -------- | ---------- | ---------- | ----------- | --------- | ------------ | -------- | -------- |
+  | /javascript | /nodejs | /frontend | /react-status | /golang | /serverless | /deno | /tailwind | /css |`,
 };

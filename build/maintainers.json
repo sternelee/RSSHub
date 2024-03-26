@@ -3898,6 +3898,9 @@
   "/npr/:endpoint?": [
     "bennyyip"
   ],
+  "/ntdm/video/:id": [
+    "alexhere"
+  ],
   "/ntdtv/:language/:id": [
     "Fatpandac"
   ],
@@ -5539,6 +5542,9 @@
     "DIYgod",
     "yindaheng98",
     "Rongronggg9"
+  ],
+  "/twreporter/category/:category": [
+    "emdoe"
   ],
   "/twreporter/newest": [
     "emdoe"

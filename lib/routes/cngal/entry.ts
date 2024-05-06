@@ -4,7 +4,7 @@ const __dirname = getCurrentPath(import.meta.url);
 
 import got from '@/utils/got';
 import { art } from '@/utils/render';
-import * as path from 'node:path';
+import path from 'node:path';
 import { parseDate } from '@/utils/parse-date';
 import timezone from '@/utils/timezone';
 
@@ -38,6 +38,7 @@ async function handler(ctx) {
 
     const data = response.data;
 
+    ctx.set('json', response.data);
     return {
         title: `CnGal - ${data.name} 的动态`,
         link: `https://www.cngal.org/entries/index/${entryId}`,
@@ -48,5 +49,4 @@ async function handler(ctx) {
             link: item.link,
         })),
     };
-    ctx.set('json', response.data);
 }

@@ -6,7 +6,7 @@ import cache from '@/utils/cache';
 import { parseDate } from '@/utils/parse-date';
 import { resolveHandle, getProfile, getAuthorFeed } from './utils';
 import { art } from '@/utils/render';
-import * as path from 'node:path';
+import path from 'node:path';
 
 export const route: Route = {
     path: '/profile/:handle',
@@ -52,6 +52,12 @@ async function handler(ctx) {
         comments: post.replyCount,
     }));
 
+    ctx.set('json', {
+        DID,
+        profile,
+        authorFeed,
+    });
+
     return {
         title: `${profile.displayName} (@${profile.handle}) — Bluesky`,
         description: profile.description?.replaceAll('\n', ' '),
@@ -61,10 +67,4 @@ async function handler(ctx) {
         logo: profile.avatar,
         item: items,
     };
-
-    ctx.set('json', {
-        DID,
-        profile,
-        authorFeed,
-    });
 }

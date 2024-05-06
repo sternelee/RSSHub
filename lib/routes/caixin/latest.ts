@@ -6,7 +6,7 @@ import cache from '@/utils/cache';
 import got from '@/utils/got';
 import { load } from 'cheerio';
 import { art } from '@/utils/render';
-import * as path from 'node:path';
+import path from 'node:path';
 
 export const route: Route = {
     path: '/latest',
@@ -34,9 +34,9 @@ export const route: Route = {
 };
 
 async function handler() {
-    const { data } = await got('https://gateway.caixin.com/api/dataplatform/scroll/index').json();
+    const { data } = await got('https://gateway.caixin.com/api/dataplatform/scroll/index');
 
-    const list = data.articleList
+    const list = data.data.articleList
         .map((e) => ({
             title: e.title,
             link: e.url,

@@ -7,7 +7,7 @@ import got from '@/utils/got';
 import { load } from 'cheerio';
 import { parseDate } from '@/utils/parse-date';
 import timezone from '@/utils/timezone';
-import * as path from 'node:path';
+import path from 'node:path';
 import { art } from '@/utils/render';
 
 const urlMap = {
@@ -208,7 +208,7 @@ async function handler(ctx) {
         )
     );
 
-    return {
+    const ret = {
         title: $('head meta[name=title]').attr('content').trim(),
         link: baseUrl + '/' + category,
         description: $('head meta[name=description]').attr('content').trim(),
@@ -216,11 +216,6 @@ async function handler(ctx) {
         language: 'zh-hk',
     };
 
-    ctx.set('json', {
-        title: $('head meta[name=title]').attr('content').trim(),
-        link: baseUrl + '/' + category,
-        description: $('head meta[name=description]').attr('content').trim(),
-        item: items,
-        language: 'zh-hk',
-    });
+    ctx.set('json', ret);
+    return ret;
 }

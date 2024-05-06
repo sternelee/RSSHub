@@ -1,12 +1,15 @@
-import { rss3Ums, json, RSS, Atom } from '@/utils/render';
-import * as path from 'node:path';
+import { rss3, json, RSS, Atom } from '@/utils/render';
 import { config } from '@/config';
 import { collapseWhitespace, convertDateToISO8601 } from '@/utils/common-utils';
 import type { MiddlewareHandler } from 'hono';
 import { Data } from '@/types';
 
-import { getCurrentPath } from '@/utils/helpers';
-const __dirname = getCurrentPath(import.meta.url);
+// Set RSS <ttl> (minute) according to the availability of cache
+// * available: max(config.cache.routeExpire / 60, 1)
+// * unavailable: 1
+// The minimum <ttl> is limited to 1 minute to prevent potential misuse
+import cacheModule from '@/utils/cache/index';
+const ttl = (cacheModule.status.available && Math.trunc(config.cache.routeExpire / 60)) || 1;
 
 const middleware: MiddlewareHandler = async (ctx, next) => {
     await next();
@@ -45,6 +48,14 @@ const middleware: MiddlewareHandler = async (ctx, next) => {
                     }
                 }
 
+                if (item.description) {
+                    // https://stackoverflow.com/questions/2507608/error-input-is-not-proper-utf-8-indicate-encoding-using-phps-simplexml-lo/40552083#40552083
+                    // https://stackoverflow.com/questions/1497885/remove-control-characters-from-php-string/1497928#1497928
+                    // remove unicode control characters
+                    // see #14940 #14943 #15262
+                    item.description = item.description.replaceAll(/[\u0000-\u0009\u000B\u000C\u000E-\u001F\u007F]/g, '');
+                }
+
                 if (typeof item.author === 'string') {
                     item.author = collapseWhitespace(item.author) || '';
                 } else if (typeof item.author === 'object' && item.author !== null) {
@@ -74,7 +85,7 @@ const middleware: MiddlewareHandler = async (ctx, next) => {
     const result = {
         lastBuildDate: currentDate.toUTCString(),
         updated: currentDate.toISOString(),
-        ttl: Math.trunc(config.cache.routeExpire / 60),
+        ttl,
         atomlink: ctx.req.url,
         ...data,
     };
@@ -83,8 +94,9 @@ const middleware: MiddlewareHandler = async (ctx, next) => {
         return ctx.json(result);
     }
 
-    if (outputType === 'ums') {
-        return ctx.json(rss3Ums(result));
+    // retain .ums for backward compatibility
+    if (outputType === 'ums' || outputType === 'rss3') {
+        return ctx.json(rss3(result));
     } else if (outputType === 'json') {
         ctx.header('Content-Type', 'application/feed+json; charset=UTF-8');
         return ctx.body(json(result));

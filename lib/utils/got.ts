@@ -1,13 +1,6 @@
 import { destr } from 'destr';
 import ofetch from '@/utils/ofetch';
 
-const gotofetch = ofetch.create({
-    parseResponse: (responseText) => ({
-        data: destr(responseText),
-        body: responseText,
-    }),
-});
-
 const getFakeGot = (defaultOptions?: any) => {
     const fakeGot = (request, options?: any) => {
         if (!(typeof request === 'string' || request instanceof Request) && request.url) {
@@ -34,14 +27,11 @@ const getFakeGot = (defaultOptions?: any) => {
             delete options.json;
         }
         if (options?.form && !options.body) {
-            const body = new FormData();
-            for (const key in options.form) {
-                body.append(key, options.form[key]);
-            }
-            options.body = body;
+            options.body = new URLSearchParams(options.form as Record<string, string>).toString();
             if (!options.headers) {
                 options.headers = {};
             }
+            options.headers['content-type'] = 'application/x-www-form-urlencoded';
             delete options.form;
         }
         if (options?.searchParams) {
@@ -49,15 +39,45 @@ const getFakeGot = (defaultOptions?: any) => {
             delete options.searchParams;
         }
 
-        return gotofetch(request, options);
+        // Add support for buffer responseType, to be compatible with got
+        options.parseResponse = (responseText) => ({
+            data: destr(responseText),
+            body: responseText,
+        });
+
+        if (options?.responseType === 'buffer' || options?.responseType === 'arrayBuffer') {
+            options.responseType = 'arrayBuffer';
+            delete options.parseResponse;
+        }
+
+        if (options.cookieJar) {
+            const cookies = options.cookieJar.getCookiesSync(request);
+            if (cookies.length) {
+                if (!options.headers) {
+                    options.headers = {};
+                }
+                options.headers.cookie = cookies.join('; ');
+            }
+            delete options.cookieJar;
+        }
+
+        const response = ofetch(request, options);
+
+        if (options?.responseType === 'arrayBuffer') {
+            return response.then((responseData) => ({
+                data: Buffer.from(responseData),
+                body: Buffer.from(responseData),
+            }));
+        }
+        return response;
     };
 
-    fakeGot.get = (request, options) => fakeGot(request, { ...options, method: 'GET' });
-    fakeGot.post = (request, options) => fakeGot(request, { ...options, method: 'POST' });
-    fakeGot.put = (request, options) => fakeGot(request, { ...options, method: 'PUT' });
-    fakeGot.patch = (request, options) => fakeGot(request, { ...options, method: 'PATCH' });
-    fakeGot.head = (request, options) => fakeGot(request, { ...options, method: 'HEAD' });
-    fakeGot.delete = (request, options) => fakeGot(request, { ...options, method: 'DELETE' });
+    fakeGot.get = (request, options?) => fakeGot(request, { ...options, method: 'GET' });
+    fakeGot.post = (request, options?) => fakeGot(request, { ...options, method: 'POST' });
+    fakeGot.put = (request, options?) => fakeGot(request, { ...options, method: 'PUT' });
+    fakeGot.patch = (request, options?) => fakeGot(request, { ...options, method: 'PATCH' });
+    fakeGot.head = (request, options?) => fakeGot(request, { ...options, method: 'HEAD' });
+    fakeGot.delete = (request, options?) => fakeGot(request, { ...options, method: 'DELETE' });
     fakeGot.extend = (options) => getFakeGot(options);
 
     return fakeGot;

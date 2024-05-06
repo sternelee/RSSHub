@@ -1,3 +1,4 @@
+import ConfigNotFoundError from '@/errors/types/config-not-found';
 import { baseUrl, gqlFeatures, bearerToken, gqlMap } from './constants';
 import { config } from '@/config';
 import got from '@/utils/got';
@@ -6,7 +7,7 @@ import { Cookie } from 'tough-cookie';
 
 export const twitterGot = async (url, params) => {
     if (!config.twitter.cookie) {
-        throw new Error('Twitter cookie is not configured');
+        throw new ConfigNotFoundError('Twitter cookie is not configured');
     }
     const jsonCookie = Object.fromEntries(
         config.twitter.cookie
@@ -15,7 +16,7 @@ export const twitterGot = async (url, params) => {
             .map((c) => [c?.key, c?.value])
     );
     if (!jsonCookie || !jsonCookie.auth_token || !jsonCookie.ct0) {
-        throw new Error('Twitter cookie is not valid');
+        throw new ConfigNotFoundError('Twitter cookie is not valid');
     }
 
     const requestData = {
@@ -54,7 +55,6 @@ export const paginationTweets = async (endpoint: string, userId: number | undefi
         }),
         features: JSON.stringify(gqlFeatures[endpoint]),
     });
-
     let instructions;
     if (path) {
         instructions = data;
@@ -63,7 +63,11 @@ export const paginationTweets = async (endpoint: string, userId: number | undefi
         }
         instructions = instructions.instructions;
     } else {
-        instructions = data.user.result.timeline_v2.timeline.instructions;
+        if (data?.user?.result?.timeline_v2?.timeline?.instructions) {
+            instructions = data.user.result.timeline_v2.timeline.instructions;
+        } else {
+            throw new Error('Because Twitter Premium has features that hide your likes, this RSS link is not available for Twitter Premium accounts.');
+        }
     }
 
     const entries1 = instructions.find((i) => i.type === 'TimelineAddToModule')?.moduleItems; // Media
@@ -120,5 +124,6 @@ export function gatherLegacyFromData(entries: any[], filterNested?: string[], us
             }
         }
     }
+
     return tweets;
 }

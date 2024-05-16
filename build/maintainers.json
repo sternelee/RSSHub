@@ -4662,6 +4662,9 @@
   "/qq/ac/rank/:type?/:time?": [
     "nczitzk"
   ],
+  "/qq/cfhd/news/:category?": [
+    "nczitzk"
+  ],
   "/qq/fact": [
     "hoilc"
   ],

@@ -793,6 +793,9 @@
   "/bjsk/keti/:id?": [
     "nczitzk"
   ],
+  "/bjtu/gs/:type?": [
+    "E1nzbern"
+  ],
   "/bjwxdxh/:type?": [
     "Misaka13514"
   ],
@@ -3107,7 +3110,12 @@
   "/japanpost/track/:reqCode/:locale?": [
     "tuzi3040"
   ],
-  "/javbus*": [],
+  "/javbus/:path{.+}?": [
+    "MegrezZhu",
+    "CoderTonyChan",
+    "nczitzk",
+    "Felix2yu"
+  ],
   "/javdb/actors/:id/:filter?": [
     "nczitzk"
   ],
@@ -5373,6 +5381,9 @@
   "/swjtu/xg/:code?": [
     "mobyw"
   ],
+  "/swjtu/gsee/yjs": [
+    "E1nzbern"
+  ],
   "/swjtu/jtys/yjs": [
     "qizidog"
   ],
@@ -6287,11 +6298,6 @@
   ],
   "/xidian/jwc/:category?": [
     "ShadowySpirits"
-  ],
-  "/ximalaya/:type/:id/:all?": [
-    "lengthmin",
-    "jjeejj",
-    "prnake"
   ],
   "/ximalaya/:type/:id/:all/:shownote?": [
     "lengthmin",

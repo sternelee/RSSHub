@@ -356,6 +356,9 @@
   "/ajmide/:id": [
     "Fatpandac"
   ],
+  "/alipan/files/:share_id/:parent_file_id?": [
+    "DIYgod"
+  ],
   "/aliresearch/information/:type?": [
     "nczitzk"
   ],
@@ -465,15 +468,6 @@
   ],
   "/arcteryx/regear/new-arrivals": [
     "EthanWng97"
-  ],
-  "/arknights/announce/:platform?/:group?": [
-    "swwind"
-  ],
-  "/arknights/japan": [
-    "ofyark"
-  ],
-  "/arknights/news": [
-    "Astrian"
   ],
   "/artstation/:handle": [
     "TonyRL"
@@ -1576,6 +1570,9 @@
   "/domp4/detail/:id": [
     "savokiss"
   ],
+  "/domp4/latest_movie_bt": [
+    "xianghuawe"
+  ],
   "/domp4/latest/:type?": [
     "savokiss"
   ],
@@ -1925,10 +1922,10 @@
   "/finology/bullets": [
     "Rjnishant530"
   ],
-  "/finology/most-viewed/:time": [
+  "/finology/:category": [
     "Rjnishant530"
   ],
-  "/finology/:category": [
+  "/finology/most-viewed/:time": [
     "Rjnishant530"
   ],
   "/finology/tag/:topic": [
@@ -2023,12 +2020,12 @@
   "/freexcomic/book/:id": [
     "junfengP"
   ],
-  "/ft/:language/:channel?": [
-    "HenryQW",
-    "xyqfer"
-  ],
   "/ft/myft/:key": [
     "HenryQW"
+  ],
+  "/ftchinese/:language/:channel?": [
+    "HenryQW",
+    "xyqfer"
   ],
   "/fuliba/latest": [
     "shinemoon"
@@ -2925,6 +2922,15 @@
     "xyqfer",
     "HenryQW",
     "nczitzk"
+  ],
+  "/hypergryph/arknights/announce/:platform?/:group?": [
+    "swwind"
+  ],
+  "/hypergryph/arknights/japan": [
+    "ofyark"
+  ],
+  "/hypergryph/arknights/news/:group?": [
+    "Astrian"
   ],
   "/ianspriggs/:category?": [
     "nczitzk"
@@ -3895,7 +3901,7 @@
   "/ngocn2/:category?": [
     "nczitzk"
   ],
-  "/nhentai/:key/:keyword/:mode?": [
+  "/nhentai/index/:key/:keyword/:mode?": [
     "MegrezZhu",
     "hoilc"
   ],
@@ -5040,7 +5046,10 @@
     "gumibea",
     "TeamSUEP"
   ],
-  "/shisu/news/:category": [
+  "/shisu/en/:section": [
+    "Duuckjing"
+  ],
+  "/shisu/news/:section": [
     "Duuckjing"
   ],
   "/shmeea/:id?": [

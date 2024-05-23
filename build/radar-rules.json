@@ -1092,6 +1092,20 @@
       }
     ]
   },
+  "alipan.com": {
+    "_name": "阿里云盘",
+    "www": [
+      {
+        "title": "文件列表",
+        "docs": "https://docs.rsshub.app/routes/multimedia",
+        "source": [
+          "/s/:share_id/folder/:parent_file_id",
+          "/s/:share_id"
+        ],
+        "target": "/alipan/files/:share_id/:parent_file_id?"
+      }
+    ]
+  },
   "aliresearch.com": {
     "_name": "阿里研究院",
     ".": [
@@ -1365,33 +1379,6 @@
           "/"
         ],
         "target": "/arcteryx/regear/new-arrivals"
-      }
-    ]
-  },
-  "arknights.jp": {
-    "_name": "明日方舟",
-    "ak": [
-      {
-        "title": "アークナイツ (日服新闻)",
-        "docs": "https://docs.rsshub.app/routes/game",
-        "source": [
-          "/news",
-          "/"
-        ],
-        "target": "/arknights/japan"
-      }
-    ]
-  },
-  "hypergryph.com": {
-    "_name": "明日方舟",
-    "ak-conf": [
-      {
-        "title": "游戏公告与新闻",
-        "docs": "https://docs.rsshub.app/routes/game",
-        "source": [
-          "/*"
-        ],
-        "target": "/arknights/news"
       }
     ]
   },
@@ -4503,6 +4490,15 @@
         "target": "/domp4/detail/:id"
       },
       {
+        "title": "最近更新的电源BT列表",
+        "docs": "https://docs.rsshub.app/routes/multimedia",
+        "source": [
+          "/",
+          "/custom/update.html"
+        ],
+        "target": "/domp4/latest_movie_bt"
+      },
+      {
         "title": "最近更新",
         "docs": "https://docs.rsshub.app/routes/multimedia",
         "source": [
@@ -5305,26 +5301,26 @@
         "target": "/finology/bullets"
       },
       {
+        "title": "Category",
+        "docs": "https://docs.rsshub.app/routes/finance",
+        "source": [
+          "/:category"
+        ],
+        "target": "/finology/:category"
+      },
+      {
         "title": "Most Viewed",
         "docs": "https://docs.rsshub.app/routes/finance",
         "source": [
-          "/:category"
+          "/most-viewed"
         ],
-        "target": "/finology/:category"
+        "target": "/finology/most-viewed/monthly"
       },
       {
-        "title": "Category",
+        "title": "Trending Topic",
         "docs": "https://docs.rsshub.app/routes/finance",
         "source": [
-          "/:category"
-        ],
-        "target": "/finology/:category"
-      },
-      {
-        "title": "Category",
-        "docs": "https://docs.rsshub.app/routes/finance",
-        "source": [
-          "/:category"
+          "/tag/:topic"
         ],
         "target": "/finology/tag/:topic"
       }
@@ -8040,6 +8036,33 @@
           "/"
         ],
         "target": "/huxiu/search/:keyword"
+      }
+    ]
+  },
+  "arknights.jp": {
+    "_name": "鹰角网络",
+    "ak": [
+      {
+        "title": "アークナイツ (日服新闻)",
+        "docs": "https://docs.rsshub.app/routes/game",
+        "source": [
+          "/news",
+          "/"
+        ],
+        "target": "/hypergryph/arknights/japan"
+      }
+    ]
+  },
+  "hypergryph.com": {
+    "_name": "鹰角网络",
+    "ak-conf": [
+      {
+        "title": "明日方舟 - 游戏公告与新闻",
+        "docs": "https://docs.rsshub.app/routes/game",
+        "source": [
+          "/news"
+        ],
+        "target": "/hypergryph/arknights/news/:group?"
       }
     ]
   },
@@ -10762,7 +10785,7 @@
         "source": [
           "/:key/:keyword"
         ],
-        "target": "/nhentai/:key/:keyword"
+        "target": "/nhentai/index/:key/:keyword"
       },
       {
         "title": "Advanced Search",
@@ -14119,14 +14142,24 @@
   },
   "shisu.edu.cn": {
     "_name": "上海外国语大学",
+    "en": [
+      {
+        "title": "SISU TODAY | FEATURED STORIES",
+        "docs": "https://docs.rsshub.app/routes/university",
+        "source": [
+          "/resources/:section/"
+        ],
+        "target": "/shisu/en/:section"
+      }
+    ],
     "news": [
       {
         "title": "上外新闻",
         "docs": "https://docs.rsshub.app/routes/university",
         "source": [
-          "/:category/index.html"
+          "/:section/index.html"
         ],
-        "target": "/shisu/news/:category"
+        "target": "/shisu/news/:section"
       }
     ]
   },

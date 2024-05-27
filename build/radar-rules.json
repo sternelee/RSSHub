@@ -8733,6 +8733,19 @@
       }
     ]
   },
+  "jingzhengu.com": {
+    "_name": "精真估",
+    "www": [
+      {
+        "title": "资讯",
+        "docs": "https://docs.rsshub.app/routes/other",
+        "source": [
+          "/"
+        ],
+        "target": "/jingzhengu/news"
+      }
+    ]
+  },
   "jisilu.cn": {
     "_name": "集思录",
     ".": [
@@ -8872,6 +8885,19 @@
           "/tag/:tag"
         ],
         "target": "/juejin/tag/:tag"
+      }
+    ]
+  },
+  "kadokawa.com.tw": {
+    "_name": "台灣角川",
+    ".": [
+      {
+        "title": "角編新聞台",
+        "docs": "https://docs.rsshub.app/routes/blog",
+        "source": [
+          "/blog/posts"
+        ],
+        "target": "/kadokawa/blog"
       }
     ]
   },
@@ -12448,6 +12474,28 @@
       }
     ]
   },
+  "podwise.ai": {
+    "_name": "Podwise",
+    ".": [
+      {
+        "title": "Collections",
+        "docs": "https://docs.rsshub.app/routes/multimedia",
+        "source": [
+          "/",
+          "/explore"
+        ],
+        "target": "/podwise/explore"
+      },
+      {
+        "title": "Episodes",
+        "docs": "https://docs.rsshub.app/routes/multimedia",
+        "source": [
+          "/explore/:type"
+        ],
+        "target": "/podwise/explore/:type"
+      }
+    ]
+  },
   "pornhub.com": {
     "_name": "PornHub",
     ".": [
@@ -15087,6 +15135,19 @@
       }
     ]
   },
+  "stream-capital.com": {
+    "_name": "远川研究所",
+    "www": [
+      {
+        "title": "最新",
+        "docs": "https://docs.rsshub.app/routes/finance",
+        "source": [
+          "/search"
+        ],
+        "target": "/stream-capital/search"
+      }
+    ]
+  },
   "studygolang.com": {
     "_name": "Go 语言中文网",
     ".": [
@@ -16798,6 +16859,19 @@
           "/de/presse-und-service/pressemitteilungen/"
         ],
         "target": "/verfghbw/press"
+      }
+    ]
+  },
+  "vice.com": {
+    "_name": "VICE",
+    "www": [
+      {
+        "title": "Topic",
+        "docs": "https://docs.rsshub.app/routes/traditional-media",
+        "source": [
+          "/:language/topic/:topic"
+        ],
+        "target": "/vice/topic/:topic/:language"
       }
     ]
   },

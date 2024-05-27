@@ -3219,6 +3219,9 @@
   "/jin10/topic/:id": [
     "miles170"
   ],
+  "/jingzhengu/news": [
+    "TonyRL"
+  ],
   "/jinse/:category?": [
     "nczitzk"
   ],
@@ -3308,6 +3311,9 @@
     "zytomorrow"
   ],
   "/junhe/legal-updates": [
+    "nczitzk"
+  ],
+  "/kadokawa/blog": [
     "nczitzk"
   ],
   "/kamen-rider-official/news/:category?": [
@@ -4557,6 +4563,12 @@
     "TonyRL"
   ],
   "/pnas/:topicPath{.+}?": [],
+  "/podwise/explore": [
+    "lyling"
+  ],
+  "/podwise/explore/:type": [
+    "lyling"
+  ],
   "/pornhub/category_url/:url?/:language?": [
     "I2IMk",
     "queensferryme"
@@ -5374,6 +5386,9 @@
   "/stratechery/": [
     "chazeon"
   ],
+  "/stream-capital/search": [
+    "TonyRL"
+  ],
   "/studygolang/go/:id?": [
     "nczitzk"
   ],
@@ -6027,6 +6042,9 @@
   ],
   "/verfghbw/press/:keyword?": [
     "quinn-dev"
+  ],
+  "/vice/topic/:topic/:language?": [
+    "K33k0"
   ],
   "/vimeo/category/:category/:staffpicks?": [
     "MisteryMonster"

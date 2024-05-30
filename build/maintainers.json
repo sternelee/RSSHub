@@ -2444,19 +2444,22 @@
   ],
   "/gov/sasac/:path{.+}": [],
   "/gov/sdb/*": [],
+  "/gov/sh/fgw/:category{.+}?": [
+    "nczitzk"
+  ],
+  "/gov/sh/rsj/ksxm": [
+    "Fatpandac"
+  ],
+  "/gov/sh/wgj/:page?": [
+    "gideonsenku"
+  ],
+  "/gov/sh/wsjkw/yqtb": [
+    "zcf0508"
+  ],
+  "/gov/sh/yjj/*": [],
   "/gov/shaanxi/kjt/:id?": [
     "nczitzk"
   ],
-  "/gov/shanghai/rsj/ksxm": [
-    "Fatpandac"
-  ],
-  "/gov/shanghai/wgj/:page?": [
-    "gideonsenku"
-  ],
-  "/gov/shanghai/wsjkw/yqtb": [
-    "zcf0508"
-  ],
-  "/gov/shanghai/yjj/*": [],
   "/gov/shenzhen/hrss/szksy/:caty/:page?": [
     "zlasd"
   ],
@@ -2954,13 +2957,9 @@
   "/idolypride/news": [
     "Mingxia1"
   ],
-  "/ieee/journal/:journal/earlyaccess/:sortType?": [
-    "5upernova-heng"
+  "/ieee/journal/:punumber/:earlyAccess?": [
+    "HenryQW"
   ],
-  "/ieee/:journal/latest/vol/:sortType?": [],
-  "/ieee/journal/:journal/:sortType?": [],
-  "/ieee/:journal/latest/date/:sortType?": [],
-  "/ieee/journal/:journal/recent/:sortType?": [],
   "/ieee-security/security-privacy": [
     "ZeddYu"
   ],
@@ -3244,6 +3243,9 @@
     "nczitzk"
   ],
   "/jlu/jwc": [
+    "mayouxi"
+  ],
+  "/jlu/ccst/xwzx/:category": [
     "mayouxi"
   ],
   "/jornada/:date?/:category?": [
@@ -6166,6 +6168,9 @@
     "zytomorrow",
     "DIYgod",
     "Rongronggg9"
+  ],
+  "/weibo/user_bookmarks/:uid/:routeParams?": [
+    "cztchoice"
   ],
   "/weibo/user/:uid/:routeParams?": [
     "DIYgod",

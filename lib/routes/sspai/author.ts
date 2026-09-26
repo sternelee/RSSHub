@@ -1,5 +1,5 @@
 import InvalidParameterError from '@/errors/types/invalid-parameter';
-import { Route } from '@/types';
+import type { Route } from '@/types';
 import cache from '@/utils/cache';
 import got from '@/utils/got';
 import { parseDate } from '@/utils/parse-date';
@@ -39,7 +39,7 @@ export const route: Route = {
         },
     ],
     name: '作者',
-    maintainers: ['SunShinenny', 'hoilc'],
+    maintainers: ['sunshinenny', 'hoilc'],
     handler,
 };
 
@@ -55,7 +55,7 @@ async function handler(ctx) {
     const author_nickname = data[0].author.nickname;
     const items = await Promise.all(
         data.map((item) => {
-            const link = `https://sspai.com/api/v1/article/info/get?id=${item.id}&view=second`;
+            const link = `https://sspai.com/api/v1/article/info/get?id=${item.id}&view=second&support_webp=true`;
             let description = '';
 
             const key = `sspai: ${item.id}`;

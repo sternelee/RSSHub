@@ -1,4 +1,4 @@
-import { Route } from '@/types';
+import type { Route } from '@/types';
 import cache from '@/utils/cache';
 import got from '@/utils/got';
 import { parseDate } from '@/utils/parse-date';
@@ -41,7 +41,7 @@ async function handler(ctx) {
     const data = resp.data.list;
     const items = await Promise.all(
         data.map((item) => {
-            const link = `https://sspai.com/api/v1/article/info/get?id=${item.id}&view=second`;
+            const link = `https://sspai.com/api/v1/article/info/get?id=${item.id}&view=second&support_webp=true`;
             let description;
             const key = `sspai: ${item.id}`;
             return cache.tryGet(key, async () => {
@@ -52,6 +52,13 @@ async function handler(ctx) {
                 if (banner) {
                     description = `<img src="${banner}" alt="Article Cover Image" style="display: block; margin: 0 auto;"><br>`;
                 }
+
+                if (articleData.body_extends) {
+                    for (const ext of articleData.body_extends) {
+                        description += ext.body;
+                    }
+                }
+
                 description += articleData.body;
 
                 return {

@@ -1,0 +1,52 @@
+import { load } from 'cheerio';
+
+import type { Route } from '@/types';
+import { ViewType } from '@/types';
+import ofetch from '@/utils/ofetch';
+
+export const route: Route = {
+    path: '/',
+    categories: ['blog'],
+    view: ViewType.Notifications,
+    example: '/imhcg',
+    parameters: {},
+    radar: [
+        {
+            source: ['infos.imhcg.cn'],
+        },
+    ],
+    name: 'Engineering blogs',
+    maintainers: ['ZiHao256', 'qzydustin'],
+    handler,
+    url: 'infos.imhcg.cn',
+};
+
+async function handler() {
+    const response = await ofetch('https://infos.imhcg.cn/');
+    const $ = load(response);
+    const items = $('li')
+        .toArray()
+        .map((item) => {
+            const title = $(item).find('a.article-title').text();
+            const link = $(item).find('a.article-title').attr('href');
+            const author = $(item).find('p.article-author').text();
+            const category = $(item)
+                .find('.article-tags .tag-item')
+                .toArray()
+                .map((tag) => $(tag).text());
+            const description = $(item).find('p.article-text').text();
+            return {
+                title,
+                link,
+                author,
+                category,
+                description,
+            };
+        });
+
+    return {
+        title: 'Engineering Blogs',
+        link: 'https://infos.imhcg.cn/',
+        item: items,
+    };
+}

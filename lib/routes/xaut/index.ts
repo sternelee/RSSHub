@@ -1,14 +1,17 @@
-import { Route } from '@/types';
+import { load } from 'cheerio';
+import pMap from 'p-map';
+
+import type { DataItem, Route } from '@/types';
 import cache from '@/utils/cache';
 import got from '@/utils/got';
 import { parseDate } from '@/utils/parse-date';
-import { load } from 'cheerio';
+import timezone from '@/utils/timezone';
 
 export const route: Route = {
     path: '/index/:category?',
     categories: ['university'],
     example: '/xaut/index/tzgg',
-    parameters: { category: '通知类别，默认为通知公告' },
+    parameters: { category: '通知类别，默认为学校新闻' },
     features: {
         requireConfig: false,
         requirePuppeteer: false,
@@ -20,76 +23,64 @@ export const route: Route = {
     name: '学校主页',
     maintainers: ['mocusez'],
     handler,
-    description: `| 通知公告 | 校园要闻 | 媒体播报 | 学术活动 |
-  | :------: | :------: | :------: | :------: |
-  |   tzgg   |   xyyw   |   mtbd   |   xshd   |`,
+    description: `| 学校新闻 | 砥志研思 | 立德树人 | 传道授业 | 校闻周知 |
+| :------: | :------: | :------: | :------: | :------: |
+|   xxxw   |   dzys   |   ldsr   |   cdsy   |   xwzz   |`,
 };
-
+async function fetchDescription(link: string): Promise<DataItem['description']> {
+    if (link.includes('://zhixing.xaut.edu.cn/') || link.includes('://xinwen.xaut.edu.cn/')) {
+        return undefined;
+    }
+    const response = await got(link);
+    return load(response.body)('#vsb_content').html() ?? undefined;
+}
 async function handler(ctx) {
     let category = ctx.req.param('category');
-    const dic_html = { tzgg: 'tzgg.htm', xyyw: 'xyyw.htm', mtbd: 'mtbd1.htm', xshd: 'xshd.htm' };
-    const dic_title = { tzgg: '通知公告', xyyw: '校园要闻', mtbd: '媒体播报', xshd: '学术活动' };
-
-    // 设置默认值
-    if (dic_title[category] === undefined) {
-        category = 'tzgg';
+    const categoryPaths = { xxxw: 'xxxw.htm', dzys: 'dzys.htm', ldsr: 'ldsr.htm', cdsy: 'cdsy.htm', xwzz: 'xwzz.htm' };
+    const categoryTitles = { xxxw: '学校新闻', dzys: '砥志研思', ldsr: '立德树人', cdsy: '传道授业', xwzz: '校闻周知' };
+    if (categoryTitles[category] === undefined) {
+        category = 'xxxw';
     }
-
     const response = await got({
         method: 'get',
-        url: 'http://www.xaut.edu.cn/index/' + dic_html[category],
+        url: 'http://www.xaut.edu.cn/index/' + categoryPaths[category],
     });
     const data = response.body;
     const $ = load(data);
-
-    // 这个列表指通知公告详情列表
-    const list = $('.newslist_block ul a')
-        .map((_, item) => {
-            item = $(item);
-            const temp = item.find('span').text();
-
-            // link原来长这样：'../info/1196/13990.htm'
-            const link = item.attr('href').replace(/^\.\./, 'http://www.xaut.edu.cn');
-            let date = parseDate(temp.slice(-10, -1), 'YYYY-MM-DD');
-            let title = temp.slice(0, -10);
-
-            if (category === 'xshd') {
-                date = parseDate(temp.slice(-11, -1).replace('年', '-').replace('月', '-').replace('日', ''), 'YYYY-MM-DD');
-                title = temp.slice(0, -11);
-            }
-
+    const list = $('div.nlist ul li')
+        .toArray()
+        .filter((item) => $(item).find('a').attr('href'))
+        .map((item): DataItem => {
+            const $item = $(item);
+            const link = new URL($item.find('a').attr('href')!, 'http://www.xaut.edu.cn/index/' + categoryPaths[category]).href;
+            const rawDate = $item.find('div.time').text();
+            const pubDate = rawDate ? timezone(parseDate(rawDate, 'YYYY-MM-DD', true), 8) : undefined;
+            const title = $item.find('h5').text();
             return {
                 title,
                 link,
-                pubDate: date,
+                pubDate: pubDate && Number.isFinite(pubDate.getTime()) ? pubDate : undefined,
             };
-        })
-        .get();
-
+        });
     return {
-        // 源标题
-        title: '西安理工大学官网-' + dic_title[category],
-        // 源链接
+        title: '西安理工大学官网-' + categoryTitles[category],
         link: 'http://www.xaut.edu.cn',
-        // 源说明
-        description: `西安理工大学官网-` + dic_title[category],
-        // 遍历此前获取的数据
-        item: await Promise.all(
-            list.map((item) =>
-                cache.tryGet(item.link, async () => {
-                    if (!item.link.match('zhixing.xaut.edu.cn') && !item.link.match('xinwen.xaut.edu.cn')) {
-                        const res = await got({
-                            method: 'get',
-                            url: item.link,
-                        });
-                        const content = load(res.body);
-                        item.description = content('#vsb_content').html();
-                    } else {
-                        item.description = '请在校内或校园VPN内查看内容';
-                    }
-                    return item;
-                })
-            )
+        description: '西安理工大学官网-' + categoryTitles[category],
+        item: await pMap(
+            list,
+            (item) =>
+                mapResolvedValue(
+                    cache.tryGet(`xaut:index:detail:v3:${item.link}`, () => fetchDescription(item.link!)),
+                    (description) => ({
+                        ...item,
+                        description,
+                    })
+                ),
+            { concurrency: 3, stopOnError: false }
         ),
     };
+}
+async function mapResolvedValue<T, U>(promise: Promise<T>, mapper: (value: T) => U | Promise<U>): Promise<U> {
+    const value = await promise;
+    return mapper(value);
 }

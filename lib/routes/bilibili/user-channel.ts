@@ -1,19 +1,18 @@
-import { Route } from '@/types';
+import NotFoundError from '@/errors/types/not-found';
+import type { Route } from '@/types';
 import cache from '@/utils/cache';
 import got from '@/utils/got';
 import { parseDate } from '@/utils/parse-date';
+import { getRouteLimit } from '@/utils/route-limit';
+
 import cacheIn from './cache';
 import utils from './utils';
 
-const notFoundData = {
-    title: '此 bilibili 频道不存在',
-};
-
 export const route: Route = {
-    path: '/user/channel/:uid/:sid/:disableEmbed?',
+    path: '/user/channel/:uid/:sid/:embed?',
     categories: ['social-media'],
     example: '/bilibili/user/channel/2267573/396050',
-    parameters: { uid: '用户 id, 可在 UP 主主页中找到', sid: '频道 id, 可在频道的 URL 中找到', disableEmbed: '默认为开启内嵌视频, 任意值为关闭' },
+    parameters: { uid: '用户 id, 可在 UP 主主页中找到', sid: '频道 id, 可在频道的 URL 中找到', embed: '默认为开启内嵌视频, 任意值为关闭' },
     features: {
         requireConfig: false,
         requirePuppeteer: false,
@@ -22,6 +21,12 @@ export const route: Route = {
         supportPodcast: false,
         supportScihub: false,
     },
+    radar: [
+        {
+            source: ['space.bilibili.com/:uid/lists/:sid'],
+            target: '/user/channel/:uid/:sid',
+        },
+    ],
     name: 'UP 主频道的视频列表',
     maintainers: ['weirongxu'],
     handler,
@@ -30,12 +35,12 @@ export const route: Route = {
 async function handler(ctx) {
     const uid = Number.parseInt(ctx.req.param('uid'));
     const sid = Number.parseInt(ctx.req.param('sid'));
-    const disableEmbed = ctx.req.param('disableEmbed');
-    const limit = ctx.req.query('limit') ?? 25;
+    const embed = !ctx.req.param('embed');
+    const limit = getRouteLimit(ctx, 25);
 
     const link = `https://space.bilibili.com/${uid}/channel/seriesdetail?sid=${sid}`;
 
-    // 获取频道信息
+    // Fetch series metadata.
     const channelInfoLink = `https://api.bilibili.com/x/series/series?series_id=${sid}`;
     const channelInfo = await cache.tryGet(channelInfoLink, async () => {
         const response = await got(channelInfoLink, {
@@ -43,14 +48,14 @@ async function handler(ctx) {
                 Referer: link,
             },
         });
-        // 频道不存在时返回 null
+        // Missing series return no metadata.
         return response.data.data;
     });
 
-    if (!channelInfo) {
-        return notFoundData;
+    if (!channelInfo || channelInfo.meta?.mid !== uid) {
+        throw new NotFoundError(`Bilibili series ${sid} was not found`);
     }
-    const [userName, face] = await cacheIn.getUsernameAndFaceFromUID(uid);
+    const [username, face] = await cacheIn.getUsernameAndFaceFromUID(uid);
     const host = `https://api.bilibili.com/x/series/archives?mid=${uid}&series_id=${sid}&only_normal=true&sort=desc&pn=1&ps=${limit}`;
 
     const response = await got(host, {
@@ -60,29 +65,23 @@ async function handler(ctx) {
     });
 
     const data = response.data.data;
-    if (!data.archives) {
-        return notFoundData;
+    if (!data?.archives) {
+        throw new NotFoundError(`Bilibili series ${sid} has no available archive list`);
     }
 
     return {
-        title: `${userName} 的 bilibili 频道 ${channelInfo.meta.name}`,
+        title: `${username} 的 bilibili 频道 ${channelInfo.meta.name}`,
         link,
-        description: `${userName} 的 bilibili 频道`,
-        logo: face,
-        icon: face,
-        item: data.archives.map((item) => {
-            const descList = [];
-            if (!disableEmbed) {
-                descList.push(utils.iframe(item.aid));
-            }
-            descList.push(`<img src="${item.pic}">`);
-            return {
-                title: item.title,
-                description: descList.join('<br>'),
-                pubDate: parseDate(item.pubdate, 'X'),
-                link: item.pubdate > utils.bvidTime && item.bvid ? `https://www.bilibili.com/video/${item.bvid}` : `https://www.bilibili.com/video/av${item.aid}`,
-                author: userName,
-            };
-        }),
+        description: `${username} 的 bilibili 频道`,
+        image: face ?? undefined,
+        logo: face ?? undefined,
+        icon: face ?? undefined,
+        item: data.archives.map((item) => ({
+            title: item.title,
+            description: utils.renderUGCDescription(embed, item.pic, '', item.aid, undefined, item.bvid),
+            pubDate: parseDate(item.pubdate, 'X'),
+            link: item.pubdate > utils.bvidTime && item.bvid ? `https://www.bilibili.com/video/${item.bvid}` : `https://www.bilibili.com/video/av${item.aid}`,
+            author: username,
+        })),
     };
 }

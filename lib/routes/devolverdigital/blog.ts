@@ -1,16 +1,18 @@
-import { Route } from '@/types';
-import cache from '@/utils/cache';
-import got from '@/utils/got';
 import { load } from 'cheerio';
+
+import type { DataItem, Route } from '@/types';
+import { parseDate } from '@/utils/parse-date';
+import { getPlaywrightPage } from '@/utils/playwright';
+import timezone from '@/utils/timezone';
 
 export const route: Route = {
     path: '/blog',
-    categories: ['blog'],
+    categories: ['game'],
     example: '/devolverdigital/blog',
     parameters: {},
     features: {
         requireConfig: false,
-        requirePuppeteer: false,
+        requirePuppeteer: true,
         antiCrawler: false,
         supportBT: false,
         supportPodcast: false,
@@ -18,59 +20,74 @@ export const route: Route = {
     },
     radar: [
         {
-            source: ['devolverdigital.com/blog'],
+            source: ['devolverdigital.com/propaganda', 'devolverdigital.com/propaganda/:slug', 'devolverdigital.com/blog'],
         },
     ],
     name: 'Official Blogs',
     maintainers: ['XXY233'],
     handler,
-    url: 'devolverdigital.com/blog',
+    url: 'devolverdigital.com/propaganda',
 };
 
 async function handler() {
-    const baseUrl = 'https://www.devolverdigital.com/blog';
-    const { data: response } = await got(baseUrl);
-
-    const $ = load(response);
-    const nextData = JSON.parse($('#__NEXT_DATA__').text());
-
-    const items = await Promise.all(
-        nextData.props.pageProps.posts.map((postData) => {
-            const postUrl = `${baseUrl}/post/${postData.id}`;
-            return cache.tryGet(postUrl, async () => {
-                const { data: postPage } = await got(postUrl);
-
-                const $page = load(postPage);
-                $page('noscript').remove();
-                const postContent = $page('div.flex > div > div > div > div:not([class])');
-
-                // img resource redirection and
-                // clean up absolute layouts for img and span
-                const imageUrls = postData.body.filter((item) => item.type === 'upload' && item.value.cloudinary.resource_type === 'image').map((item) => item.value.cloudinary.secure_url);
-                const allImageSpans = postContent.find('span > img').parent();
-                allImageSpans.each((spanIndex, span) => {
-                    $(span).attr('style', $(span).attr('style').replace('position:absolute', ''));
-                    const img = $(span).find('img');
-                    img.attr('src', imageUrls[spanIndex]);
-                    img.attr('style', img.attr('style').replace('position:absolute', '').replace('width:0', '').replace('height:0', ''));
-                });
-
-                return {
-                    title: postData.title,
-                    link: postUrl,
-                    author: postData.author,
-                    pubDate: Date.parse(postData.createdAt),
-                    updated: Date.parse(postData.updatedAt),
-                    description: postContent.html(),
-                };
-            });
-        })
-    );
+    const items = await fetchPage();
 
     return {
         title: 'DevolverDigital Blog',
-        language: 'en-us',
-        link: 'https://www.devolverdigital.com/blog',
+        language: 'en-us' as const,
+        link: 'https://www.devolverdigital.com/propaganda',
         item: items,
     };
+}
+
+async function fetchPage() {
+    const baseUrl = 'https://www.devolverdigital.com/propaganda';
+    const { page, destroy } = await getPlaywrightPage(baseUrl, {
+        closeTimeout: 0,
+        onBeforeLoad: async (page) => {
+            await page.route('**/*', (route) => (route.request().resourceType() === 'document' ? route.continue() : route.abort()));
+        },
+    });
+    try {
+        await page.waitForSelector('.cms-content', { state: 'attached' });
+        const response = await page.content();
+        const $ = load(response);
+        const items: DataItem[] = $('.cms-content')
+            .toArray()
+            .map((content) => {
+                const $post = $(content).parent();
+                const $title = $post.find('h1');
+                const link = $post.find('a[href^="https://www.devolverdigital.com/propaganda/"]').attr('href');
+                if (!link) {
+                    throw new Error('Devolver Digital article permalink was not found');
+                }
+                parsePostImages($, content);
+                return {
+                    title: $title.text(),
+                    link,
+                    category: [$title.prev().children().first().text()],
+                    author: $title.next().text().replace(/^By /, ''),
+                    pubDate: timezone(parseDate($title.prev().children().last().text(), 'MMMM D, YYYY'), 0),
+                    description: $(content).html(),
+                };
+            });
+        return items;
+    } finally {
+        await destroy();
+    }
+}
+
+function parsePostImages($, content) {
+    $(content)
+        .find('img')
+        .each((index, img) => {
+            const $img = $(img);
+            const src = $img.attr('src') || '';
+            if (src.startsWith('/_next/image')) {
+                const srcSet = $img.attr('srcset') || '';
+                const actualSrc = srcSet.split(',').pop()?.split(' ', 1)[0] || src;
+                $img.attr('src', actualSrc);
+            }
+            $img.removeAttr('loading').removeAttr('decoding').removeAttr('data-nimg').removeAttr('style').removeAttr('sizes').removeAttr('srcset').removeAttr('referrerpolicy');
+        });
 }

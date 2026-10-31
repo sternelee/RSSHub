@@ -1,9 +1,14 @@
-import { Route } from '@/types';
-import cache from '@/utils/cache';
-import got from '@/utils/got';
-import { parseDate } from '@/utils/parse-date';
-import { phoneBaseUrl, webBaseUrl, generateNonce, sign, getPost } from './utils';
+import pMap from 'p-map';
+
 import { config } from '@/config';
+import type { Route } from '@/types';
+import cache from '@/utils/cache';
+import ofetch from '@/utils/ofetch';
+import { parseDate } from '@/utils/parse-date';
+import { getRouteLimit } from '@/utils/route-limit';
+
+import type { RecommendListData, SpecialBoardDetail } from './types';
+import { generateNonce, getPost, phoneBaseUrl, sign, webBaseUrl } from './utils';
 
 export const route: Route = {
     path: '/bbs/special/:specialId',
@@ -13,7 +18,7 @@ export const route: Route = {
     features: {
         requireConfig: false,
         requirePuppeteer: false,
-        antiCrawler: false,
+        antiCrawler: true,
         supportBT: false,
         supportPodcast: false,
         supportScihub: false,
@@ -25,7 +30,7 @@ export const route: Route = {
 
 async function handler(ctx) {
     const specialId = ctx.req.param('specialId');
-    const { limit = '10' } = ctx.req.query();
+    const limit = String(getRouteLimit(ctx, 10));
 
     const specialDetail = await cache.tryGet(`dxy:special:detail:${specialId}`, async () => {
         const detailParams = {
@@ -35,8 +40,8 @@ async function handler(ctx) {
             noncestr: generateNonce(8, 'number'),
         };
 
-        const { data: detail } = await got(`${phoneBaseUrl}/newh5/bbs/special/detail`, {
-            searchParams: {
+        const detail = await ofetch<{ code: string; message: string; data: SpecialBoardDetail }>(`${phoneBaseUrl}/newh5/bbs/special/detail`, {
+            query: {
                 ...detailParams,
                 sign: sign(detailParams),
             },
@@ -48,7 +53,7 @@ async function handler(ctx) {
     });
 
     const recommendList = await cache.tryGet(
-        `dxy:special:recommend-list-v3:${specialId}`,
+        `dxy:special:recommend-list-v3:${specialId}:${limit}`,
         async () => {
             const listParams = {
                 specialId,
@@ -59,8 +64,8 @@ async function handler(ctx) {
                 noncestr: generateNonce(8, 'number'),
             };
 
-            const { data: recommendList } = await got(`${phoneBaseUrl}/newh5/bbs/special/post/recommend-list-v3`, {
-                searchParams: {
+            const recommendList = await ofetch<{ code: string; message: string; data: RecommendListData }>(`${phoneBaseUrl}/newh5/bbs/special/post/recommend-list-v3`, {
+                query: {
                     ...listParams,
                     sign: sign(listParams),
                 },
@@ -81,13 +86,13 @@ async function handler(ctx) {
             description: postInfo.simpleBody,
             pubDate: parseDate(dataTime, 'x'),
             author: postInfo.postUser.nickname,
-            category: postInfo.postSpecial.specialName,
+            category: [postInfo.postSpecial.specialName],
             link: `${webBaseUrl}/bbs/newweb/pc/post/${entityId}`,
             postId: entityId,
         };
     });
 
-    const items = await Promise.all(list.map((item) => getPost(item, cache.tryGet)));
+    const items = await pMap(list, (item) => getPost(item), { concurrency: 3 });
 
     return {
         title: specialDetail.name,

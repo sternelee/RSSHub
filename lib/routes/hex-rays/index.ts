@@ -1,8 +1,11 @@
-import { Route } from '@/types';
+import { load } from 'cheerio';
+import pMap from 'p-map';
+
+import type { Data, DataItem, Route } from '@/types';
 import cache from '@/utils/cache';
 import got from '@/utils/got';
-import { load } from 'cheerio';
 import { parseDate } from '@/utils/parse-date';
+import { parseDateInTimezone } from '@/utils/parse-date-in-timezone';
 
 export const route: Route = {
     path: '/news',
@@ -22,52 +25,57 @@ export const route: Route = {
             source: ['hex-rays.com/', 'hex-rays.com/blog'],
         },
     ],
-    name: 'Hex-Rays News',
-    maintainers: ['hellodword ', 'TonyRL'],
+    name: 'News',
+    maintainers: ['hellodword', 'TonyRL', 'Mas0n'],
     handler,
     url: 'hex-rays.com/',
 };
 
-async function handler() {
-    const link = 'https://www.hex-rays.com/blog/';
+async function handler(/* ctx*/): Promise<Data> {
+    const link = 'https://hex-rays.com/blog/';
     const response = await got.get(link);
     const $ = load(response.data);
 
-    const list = $('.post-list-container')
-        .map((_, ele) => ({
-            title: $('h3 > a', ele).text(),
-            link: $('h3 > a', ele).attr('href'),
-            pubDate: parseDate($('.post-meta:nth-of-type(1)', ele).first().text().trim().replace('Posted on:', '')),
-            author: $('.post-meta:nth-of-type(2)', ele).first().text().replace('By:', '').trim(),
-        }))
-        .get();
+    const list: DataItem[] = $('article.featured-article, section.articles article.article')
+        .toArray()
+        .map((ele): DataItem => {
+            const date = $('time[datetime]', ele).attr('datetime');
+            return {
+                title: $('h2 > a', ele).text(),
+                link: $('h2 > a', ele).attr('href'),
+                pubDate: date ? parseDateInTimezone(date, 0) : undefined,
+                author: $('.author-name', ele).text(),
+            };
+        });
 
-    const items = await Promise.all(
-        list.map((item) =>
-            cache.tryGet(item.link, async () => {
+    const items: DataItem[] = await pMap(
+        list,
+        (item: DataItem) =>
+            cache.tryGet(item.link!, async (): Promise<DataItem> => {
                 const detailResponse = await got.get(item.link);
                 const content = load(detailResponse.data);
-
-                item.category = (
-                    content('.category-link')
+                item.category = content('.topics > a')
+                    .toArray()
+                    .map((ele) => content(ele).text());
+                item.description = content('.post-body').html();
+                if (!item.pubDate) {
+                    const articleData = content('script[type="application/ld+json"]')
                         .toArray()
-                        .map((e) => $(e).text()) +
-                    ',' +
-                    content('.tag-link')
-                        .toArray()
-                        .map((e) => $(e).text())
-                ).split(',');
-
-                item.description = content('.post-content').html();
-
+                        .map((element) => JSON.parse(content(element).text()))
+                        .find((data) => data['@type'] === 'BlogPosting');
+                    if (articleData?.datePublished) {
+                        item.pubDate = parseDate(articleData.datePublished);
+                    }
+                }
                 return item;
-            })
-        )
+            }),
+        { concurrency: 3 }
     );
 
     return {
         title: 'Hex-Rays Blog',
         link,
         item: items,
+        image: 'https://hex-rays.com/hubfs/Ico-logo.png',
     };
 }

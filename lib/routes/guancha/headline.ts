@@ -1,9 +1,12 @@
-import { Route } from '@/types';
+import { load } from 'cheerio';
+
+import type { Route } from '@/types';
 import cache from '@/utils/cache';
 import got from '@/utils/got';
-import { load } from 'cheerio';
-import timezone from '@/utils/timezone';
 import { parseDate } from '@/utils/parse-date';
+import timezone from '@/utils/timezone';
+
+import { getFullText } from './utils';
 
 export const route: Route = {
     path: '/headline',
@@ -20,13 +23,13 @@ export const route: Route = {
     },
     radar: [
         {
-            source: ['guancha.cn/GuanChaZheTouTiao', 'guancha.cn/'],
+            source: ['guancha.cn/GuanChaZheTouTiao/list_1.shtml', 'guancha.cn/', 'guancha.cn/special/GuanChaZheTouTiao/1'],
         },
     ],
     name: '头条',
     maintainers: ['nczitzk'],
     handler,
-    url: 'guancha.cn/GuanChaZheTouTiao',
+    url: 'guancha.cn/special/GuanChaZheTouTiao/1',
 };
 
 async function handler() {
@@ -43,18 +46,19 @@ async function handler() {
     let items = $('.headline-list li .content-headline h3 a')
         .toArray()
         .map((item) => {
-            item = $(item);
+            const $item = $(item);
             return {
-                title: item.text(),
-                description: item.parent().next().html(),
-                link: `${rootUrl}${item.attr('href').replace(/\.shtml$/, '_s.shtml')}`,
-                pubDate: timezone(parseDate(item.parents('div').first().find('span').text()), +8),
+                title: $item.text(),
+                description: $item.parent().next().html(),
+                summary: $item.parent().next().text(),
+                link: new URL($item.attr('href')!, rootUrl).href,
+                pubDate: timezone(parseDate($item.parents('div').first().find('span').text()), 8),
             };
         });
 
     items = await Promise.all(
-        items.map((item) =>
-            cache.tryGet(item.link, async () => {
+        items.map(async (item) => {
+            const article = await cache.tryGet(`guancha:headline:full-article:${item.link}`, async () => {
                 const detailResponse = await got({
                     method: 'get',
                     url: item.link,
@@ -62,11 +66,13 @@ async function handler() {
 
                 const content = load(detailResponse.data);
 
-                item.description += content('.all-txt').html();
-
-                return item;
-            })
-        )
+                return {
+                    description: await getFullText(content, item.link),
+                    author: content('.author-intro p a').text() || content('.editor-intro p a').text() || undefined,
+                };
+            });
+            return { ...item, ...article };
+        })
     );
 
     return {

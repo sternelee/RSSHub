@@ -1,7 +1,9 @@
-import { Route } from '@/types';
+import { load } from 'cheerio';
+import pMap from 'p-map';
+
+import type { DataItem, Language, Route } from '@/types';
 import cache from '@/utils/cache';
 import got from '@/utils/got';
-import { load } from 'cheerio';
 import { parseDate } from '@/utils/parse-date';
 import timezone from '@/utils/timezone';
 
@@ -12,7 +14,7 @@ const categories = {
 };
 
 export const route: Route = {
-    path: '/nrta/news/:category?',
+    path: '/news/:category?',
     categories: ['government'],
     example: '/gov/nrta/news',
     parameters: { category: '资讯类别，可从地址中获取，默认为总局要闻' },
@@ -28,8 +30,8 @@ export const route: Route = {
     maintainers: ['yuxinliu-alex'],
     handler,
     description: `| 总局要闻 | 公告公示 | 工作动态 | 其他 |
-  | -------- | -------- | -------- | ---- |
-  | 112      | 113      | 114      |      |`,
+| -------- | -------- | -------- | ---- |
+| 112      | 113      | 114      |      |`,
 };
 
 async function handler(ctx) {
@@ -44,7 +46,7 @@ async function handler(ctx) {
         url: currentUrl,
     });
 
-    const regex = /<!\[cdata\[([\S\s]*?)]]>(?=\s*<)/gi;
+    const regex = /<!\[cdata\[([\s\S]*?)\]\]>(?=\s*<)/gi;
     const data = response.data.replaceAll(regex, '$1');
 
     const $ = load(data, {
@@ -52,34 +54,43 @@ async function handler(ctx) {
     });
 
     const list = $('a', 'record')
-        .map((_, item) => {
-            item = $(item);
+        .toArray()
+        .map((item): DataItem => {
+            const $item = $(item);
+            const dateText = $item.find('span').text();
             return {
-                link: item.attr('href'),
+                link: $item.attr('href'),
+                // The list shows a shortened title followed by the date in a <span>
+                title: $item.contents().not('span').text().trim(),
+                pubDate: dateText ? timezone(parseDate(dateText), 8) : undefined,
             };
-        })
-        .get();
-    const items = await Promise.all(
-        list.map((item) =>
-            cache.tryGet(item.link, async () => {
-                const detailResponse = await got({
-                    method: 'get',
-                    url: item.link,
-                });
-                const content = load(detailResponse.data);
-                item.title = content('td[id="artTitMob"]').text();
-                item.description = content('div[id="c"]').html();
-                item.pubDate = timezone(parseDate(content('.mobile_time.shareWarpTime').text().trim()), +8);
-                item.author = content('.mobile_time.shareFromz').text();
-                return item;
-            })
-        )
+        });
+    const items = await pMap(
+        list,
+        (item) =>
+            // Some entries link to other sites, such as scio.gov.cn, whose pages use a different layout
+            new URL(item.link!).hostname === new URL(rootUrl).hostname
+                ? cache.tryGet(item.link!, async () => {
+                      const detailResponse = await got({
+                          method: 'get',
+                          url: item.link,
+                      });
+                      const content = load(detailResponse.data);
+                      item.title = content('td[id="artTitMob"]').text();
+                      item.description = content('div[id="c"]').html();
+                      const dateText = content('.mobile_time.shareWarpTime').text().trim();
+                      item.pubDate = dateText ? timezone(parseDate(dateText), 8) : item.pubDate;
+                      item.author = content('.mobile_time.shareFromz').text();
+                      return item;
+                  })
+                : item,
+        { concurrency: 3 }
     );
     return {
-        title: category in categories ? categories[category] : '其他',
+        title: Object.hasOwn(categories, category) ? categories[category] : '其他',
         link: `http://www.nrta.gov.cn/col/col${category}/index.html`,
         description: '国家广播电视总局',
-        language: 'zh-cn',
+        language: 'zh-CN' as const satisfies Language,
         item: items,
     };
 }

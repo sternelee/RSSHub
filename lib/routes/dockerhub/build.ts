@@ -1,12 +1,23 @@
-import { Route } from '@/types';
+import type { Route } from '@/types';
+import { ViewType } from '@/types';
 import got from '@/utils/got';
+import { parseDate } from '@/utils/parse-date';
+
 import { hash } from './utils';
 
 export const route: Route = {
     path: '/build/:owner/:image/:tag?',
-    categories: ['program-update', 'popular'],
-    example: '/dockerhub/build/wangqiru/ttrss',
-    parameters: { owner: 'Image owner', image: 'Image name', tag: 'Image tag，default to latest' },
+    categories: ['program-update'],
+    view: ViewType.Notifications,
+    example: '/dockerhub/build/diygod/rsshub/latest',
+    parameters: {
+        owner: 'Image owner, the owner of the official image fills in the library, for example: /dockerhub/build/library/mysql',
+        image: 'Image name',
+        tag: {
+            description: 'Image tag',
+            default: 'latest',
+        },
+    },
     features: {
         requireConfig: false,
         requirePuppeteer: false,
@@ -18,9 +29,6 @@ export const route: Route = {
     name: 'Image New Build',
     maintainers: ['HenryQW'],
     handler,
-    description: `:::warning
-  The owner of the official image fills in the library, for example: [https://rsshub.app/dockerhub/build/library/mysql](https://rsshub.app/dockerhub/build/library/mysql)
-  :::`,
 };
 
 async function handler(ctx) {
@@ -44,7 +52,7 @@ async function handler(ctx) {
                 title: `${namespace}:${tag} was built. ${(item.images[0].size / 1_000_000).toFixed(2)} MB`,
                 link: `https://hub.docker.com/layers/docker/${namespace}/${tag}/images/${item.images[0].digest.replace(':', '-')}`,
                 author: owner,
-                pubDate: new Date(item.last_updated).toUTCString(),
+                pubDate: parseDate(item.last_updated),
                 // only check for different images hashes (considering varients of all arches), since the tag name is already fixed
                 guid: hash(item.images),
             },

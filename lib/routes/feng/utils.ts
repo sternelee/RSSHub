@@ -1,10 +1,14 @@
-import cache from '@/utils/cache';
 import CryptoJS from 'crypto-js';
-import got from '@/utils/got';
+
 import { config } from '@/config';
+import cache from '@/utils/cache';
+import got from '@/utils/got';
+
 const apiUrl = 'https://api.wfdata.club';
 const baseUrl = 'https://www.feng.com';
 const KEY = '2b7e151628aed2a6';
+// The thread list keeps threads the forum has deleted (内容已被删除); their detail answers this code
+const threadDeleted = 1047;
 
 // https://juejin.cn/post/6844904066468806664
 const getXRequestId = (apiUrl) => {
@@ -39,7 +43,7 @@ const getCategory = (topicId) => {
 
 const getForumMeta = async (topicId) => {
     const categoryData = await getCategory(topicId);
-    return Object.values(categoryData.data.dataList).find((item) => item.dataList.find((i) => i.topicId === topicId));
+    return Object.values<any>(categoryData.data.dataList).find((item) => item.dataList.find((i) => i.topicId === topicId));
 };
 
 const getThreads = (topicId, type) => {
@@ -69,8 +73,11 @@ const getThread = (tid, topicId) => {
                 'X-Request-Id': getXRequestId(url),
             },
         });
+        if (response.data.status.code !== 0 && response.data.status.code !== threadDeleted) {
+            throw new Error(`The forum did not provide thread ${tid}: ${response.data.status.message} (code ${response.data.status.code}). Check that ${baseUrl}/post/${tid} is public.`);
+        }
         return response.data;
     });
 };
 
-export { baseUrl, getForumMeta, getThreads, getThread };
+export { baseUrl, getForumMeta, getThread, getThreads, threadDeleted };

@@ -1,6 +1,8 @@
-import { Route } from '@/types';
-import ofetch from '@/utils/ofetch';
 import { load } from 'cheerio';
+
+import type { Route } from '@/types';
+import ofetch from '@/utils/ofetch';
+
 // import { parseRelativeDate } from '@/utils/parse-date';
 import { baseUrl, parseTradeItem } from './utils';
 
@@ -25,15 +27,15 @@ async function handler(ctx) {
     const response = await ofetch(link.href);
     const $ = load(response);
 
-    const list = $('.item_list li a')
+    const list = $('.item_grid_wrap div a')
         .toArray()
         .map((item) => {
-            item = $(item);
-            item.find('.optional').remove();
+            const $item = $(item);
+            $item.find('.optional').remove();
             return {
-                title: item.find('.trade_title').text(),
-                link: new URL(item.attr('href'), link.href).href,
-                author: item.find('.trade_info').text(),
+                title: $item.find('.lazyloadx').attr('alt'),
+                link: new URL($item.attr('href')!, link.href).href,
+                author: $item.find('.trade_info div span').eq(1).text(),
             };
         });
 

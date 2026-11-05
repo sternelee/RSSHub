@@ -1,10 +1,12 @@
-import { Route } from '@/types';
+import { load } from 'cheerio';
+import MarkdownIt from 'markdown-it';
+
+import type { Route } from '@/types';
 import cache from '@/utils/cache';
 import got from '@/utils/got';
-import { load } from 'cheerio';
 import { parseDate } from '@/utils/parse-date';
+import { getRouteLimit } from '@/utils/route-limit';
 import timezone from '@/utils/timezone';
-import MarkdownIt from 'markdown-it';
 
 const md = MarkdownIt({
     html: true,
@@ -18,7 +20,7 @@ async function getArticles() {
     return json.props.pageProps.list.map((item) => ({
         title: item.title,
         link: 'https://www.apiseven.com' + item.slug,
-        pubDate: timezone(parseDate(item.published_at), +8),
+        pubDate: timezone(parseDate(item.published_at), 8),
         category: item.tags,
     }));
 }
@@ -41,10 +43,10 @@ export const route: Route = {
     handler,
 };
 
-async function handler() {
+async function handler(ctx) {
     const articles = await getArticles();
     const items = await Promise.all(
-        articles.map((item) =>
+        articles.slice(0, getRouteLimit(ctx, 20)).map((item) =>
             cache.tryGet(item.link, async () => {
                 const { data: res } = await got(item.link);
                 const $ = load(res);
@@ -54,6 +56,7 @@ async function handler() {
                     description: md.render(json.props.pageProps.post.content),
                     link: item.link,
                     pubDate: item.pubDate,
+                    category: item.category,
                     author: json.props.pageProps.post.author_name,
                 };
             })

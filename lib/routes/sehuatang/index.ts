@@ -1,8 +1,12 @@
-import { Route } from '@/types';
-import cache from '@/utils/cache';
-import got from '@/utils/got';
 import { load } from 'cheerio';
+import pMap from 'p-map';
+
+import { config } from '@/config';
+import type { DataItem, Route } from '@/types';
+import cache from '@/utils/cache';
+import ofetch from '@/utils/ofetch';
 import { parseDate } from '@/utils/parse-date';
+import { getRouteLimit } from '@/utils/route-limit';
 import timezone from '@/utils/timezone';
 
 const host = 'https://www.sehuatang.net/';
@@ -39,62 +43,92 @@ const forumIdMaps = {
 
 export const route: Route = {
     path: ['/bt/:subforumid?', '/picture/:subforumid', '/:subforumid?/:type?', '/:subforumid?', ''],
-    name: 'Unknown',
+    categories: ['multimedia'],
+    example: '/sehuatang/36/368',
+    parameters: {
+        subforumid: '版块 id 或板块名称（见下表）, 为空默认高清中文字幕',
+        type: '类型 id, 可在分区类型过滤后的 URL 中找到',
+    },
+    name: 'Forum',
     maintainers: ['qiwihui', 'junfengP', 'nczitzk'],
     handler,
+    features: {
+        nsfw: true,
+        supportBT: true,
+    },
     description: `**原创 BT 电影**
 
-  | 国产原创 | 亚洲无码原创 | 亚洲有码原创 | 高清中文字幕 | 三级写真 | VR 视频 | 素人有码 | 欧美无码 | 韩国主播 | 动漫原创 | 综合讨论 |
-  | -------- | ------------ | ------------ | ------------ | -------- | ------- | -------- | -------- | -------- | -------- | -------- |
-  | gcyc     | yzwmyc       | yzymyc       | gqzwzm       | sjxz     | vr      | srym     | omwm     | hgzb     | dmyc     | zhtl     |
+| 国产原创 | 亚洲无码原创 | 亚洲有码原创 | 高清中文字幕 | 三级写真 | VR 视频 | 素人有码 | 欧美无码 | 韩国主播 | 动漫原创 | 综合讨论 |
+| -------- | ------------ | ------------ | ------------ | -------- | ------- | -------- | -------- | -------- | -------- | -------- |
+| gcyc     | yzwmyc       | yzymyc       | gqzwzm       | sjxz     | vr      | srym     | omwm     | hgzb     | dmyc     | zhtl     |
 
-  **色花图片**
+**色花图片**
 
-  | 原创自拍 | 转贴自拍 | 华人街拍 | 亚洲性爱 | 欧美性爱 | 卡通动漫 | 套图下载 |
-  | -------- | -------- | -------- | -------- | -------- | -------- | -------- |
-  | yczp     | ztzp     | hrjp     | yzxa     | omxa     | ktdm     | ttxz     |`,
+| 原创自拍 | 转贴自拍 | 华人街拍 | 亚洲性爱 | 欧美性爱 | 卡通动漫 | 套图下载 |
+| -------- | -------- | -------- | -------- | -------- | -------- | -------- |
+| yczp     | ztzp     | hrjp     | yzxa     | omxa     | ktdm     | ttxz     |`,
 };
+
+const getSafeId = () =>
+    cache.tryGet(
+        'sehuatang:safeid',
+        async () => {
+            const response = await ofetch(host);
+            const $ = load(response);
+            const safeId = $('script:contains("safeid")')
+                .text()
+                .match(/safeid\s*=\s*'(.+)';/)?.[1];
+            return safeId ?? '';
+        },
+        config.cache.routeExpire,
+        false
+    );
 
 async function handler(ctx) {
     const subformName = ctx.req.param('subforumid') ?? 'gqzwzm';
-    const subformId = subformName in forumIdMaps ? forumIdMaps[subformName] : subformName;
+    const subformId = Object.hasOwn(forumIdMaps, subformName) ? forumIdMaps[subformName] : subformName;
     const type = ctx.req.param('type');
     const typefilter = type ? `&filter=typeid&typeid=${type}` : '';
     const link = `${host}forum.php?mod=forumdisplay&orderby=dateline&fid=${subformId}${typefilter}`;
     const headers = {
-        'Accept-Encoding': 'gzip, deflate, br',
-        'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
-        Cookie: '_safe=vqd37pjm4p5uodq339yzk6b7jdt6oich',
+        Cookie: `_safe=${await getSafeId()};`,
     };
 
-    const response = await got(link, {
+    const response = await ofetch(link, {
         headers,
     });
-    const $ = load(response.data);
+    const $ = load(response);
 
+    const limit = getRouteLimit(ctx, 25);
     const list = $('#threadlisttableid tbody[id^=normalthread]')
-        .slice(0, ctx.req.query('limit') ? Number.parseInt(ctx.req.query('limit')) : 25)
+        .slice(0, limit)
         .toArray()
-        .map((item) => {
-            item = $(item);
-            const hasCategory = item.find('th em a').length;
+        .map((item): DataItem => {
+            const $item = $(item);
+            const hasCategory = $item.find('th em a').length;
+            const dateString = $item.find('td.by').find('em span span').attr('title');
             return {
-                title: `${hasCategory ? `[${item.find('th em a').text()}]` : ''} ${item.find('a.xst').text()}`,
-                link: host + item.find('a.xst').attr('href'),
-                pubDate: parseDate(item.find('td.by').find('em span span').attr('title')),
-                author: item.find('td.by cite a').first().text(),
+                title: $item.find('a.xst').text(),
+                category: hasCategory ? [$item.find('th em a').text()] : undefined,
+                link: host + $item.find('a.xst').attr('href'),
+                pubDate: dateString ? timezone(parseDate(dateString), 8) : undefined,
+                author: $item.find('td.by cite a').first().text(),
             };
         });
 
-    const out = await Promise.all(
-        list.map((info) =>
-            cache.tryGet(info.link, async () => {
-                const response = await got(info.link, {
+    const out = await pMap(
+        list,
+        async (info) => {
+            const detail = await cache.tryGet(`${info.link}:details`, async () => {
+                const response = await ofetch(info.link!, {
                     headers,
                 });
 
-                const $ = load(response.data);
-                const postMessage = $("td[id^='postmessage']").slice(0, 1);
+                const $ = load(response);
+                const postMessage = $('div[id^="postmessage"], td[id^="postmessage"]').slice(0, 1);
+                if (!postMessage.length) {
+                    throw new Error(`No public post body was found at ${info.link}.`);
+                }
                 const images = $(postMessage).find('img');
                 for (const image of images) {
                     const file = $(image).attr('file');
@@ -118,8 +152,11 @@ async function handler(ctx) {
                 postMessage.append($(pattl));
                 $('em[onclick]').remove();
 
-                info.description = (postMessage.html() || '抓取原帖失败').replaceAll('ignore_js_op', 'div');
-                info.pubDate = timezone(parseDate($('.authi em span').attr('title')), 8);
+                const dateString = $('.authi em span').attr('title');
+                const detail: Partial<DataItem> = {
+                    description: postMessage.html()!.replaceAll('ignore_js_op', 'div'),
+                    pubDate: dateString ? timezone(parseDate(dateString), 8) : undefined,
+                };
 
                 const magnet = postMessage.find('div.blockcode li').first().text();
                 const isMag = magnet.startsWith('magnet');
@@ -127,14 +164,16 @@ async function handler(ctx) {
 
                 const hasEnclosureUrl = isMag || torrent !== undefined;
                 if (hasEnclosureUrl) {
-                    const enclosureUrl = isMag ? magnet : new URL(torrent, host).href;
-                    info.enclosure_url = enclosureUrl;
-                    info.enclosure_type = isMag ? 'application/x-bittorrent' : 'application/octet-stream';
+                    const enclosureUrl = isMag ? magnet : new URL(torrent!, host).href;
+                    detail.enclosure_url = enclosureUrl;
+                    detail.enclosure_type = isMag ? 'application/x-bittorrent' : 'application/octet-stream';
                 }
 
-                return info;
-            })
-        )
+                return detail;
+            });
+            return { ...info, ...detail, pubDate: detail.pubDate ?? info.pubDate };
+        },
+        { concurrency: 3 }
     );
 
     return {

@@ -1,5 +1,6 @@
 import InvalidParameterError from '@/errors/types/invalid-parameter';
-import { Route } from '@/types';
+import type { Route } from '@/types';
+import { ViewType } from '@/types';
 import got from '@/utils/got';
 import { parseDate } from '@/utils/parse-date';
 
@@ -15,8 +16,20 @@ const FILTER_NODE_TYPE_MAP = {
 export const route: Route = {
     path: '/video/:login/:filter?',
     categories: ['live'],
+    view: ViewType.Videos,
     example: '/twitch/video/riotgames/highlights',
-    parameters: { login: 'Twitch username', filter: 'Video type, Default to all' },
+    parameters: {
+        login: 'Twitch username',
+        filter: {
+            description: 'Video type, Default to all',
+            options: [
+                { value: 'archive', label: 'Archive' },
+                { value: 'highlights', label: 'Highlights' },
+                { value: 'all', label: 'All' },
+            ],
+            default: 'all',
+        },
+    },
     features: {
         requireConfig: false,
         requirePuppeteer: false,
@@ -34,15 +47,20 @@ export const route: Route = {
     name: 'Channel Video',
     maintainers: ['hoilc'],
     handler,
-    description: `| archive           | highlights                    | all        |
-| ----------------- | ----------------------------- | ---------- |
-| Recent broadcasts | Recent highlights and uploads | All videos |`,
 };
+
+function getPublicationDate(value: string | undefined) {
+    if (typeof value !== 'string' || !value) {
+        return;
+    }
+    const date = parseDate(value);
+    return Number.isFinite(date.getTime()) ? date : undefined;
+}
 
 async function handler(ctx) {
     const login = ctx.req.param('login');
     const filter = ctx.req.param('filter')?.toLowerCase() || 'all';
-    if (!FILTER_NODE_TYPE_MAP[filter]) {
+    if (!Object.hasOwn(FILTER_NODE_TYPE_MAP, filter)) {
         throw new InvalidParameterError(`Unsupported filter type "${filter}", please choose from { ${Object.keys(FILTER_NODE_TYPE_MAP).join(', ')} }`);
     }
 
@@ -73,7 +91,7 @@ async function handler(ctx) {
     const channelVideoShelvesQueryData = response.data[0].data;
 
     if (!channelVideoShelvesQueryData.user.id) {
-        throw new InvalidParameterError(`Username does not exist`);
+        throw new InvalidParameterError('Username does not exist');
     }
 
     const displayName = channelVideoShelvesQueryData.user.displayName;
@@ -87,7 +105,7 @@ async function handler(ctx) {
         title: item.title,
         link: `https://www.twitch.tv/videos/${item.id}`,
         author: displayName,
-        pubDate: parseDate(item.publishedAt),
+        pubDate: getPublicationDate(item.publishedAt),
         description: `<img style="max-width: 100%;" src="${item.previewThumbnailURL}"><br/><img style="max-width: 100%;" src="${item.animatedPreviewURL}">`,
         category: item.game && [item.game.displayName], // item.game may be null
     }));

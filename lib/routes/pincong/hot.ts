@@ -1,8 +1,10 @@
-import { Route } from '@/types';
-import cache from '@/utils/cache';
 import { load } from 'cheerio';
+
+import type { Route } from '@/types';
+import cache from '@/utils/cache';
 import { parseDate } from '@/utils/parse-date';
-import { baseUrl, puppeteerGet } from './utils';
+
+import { baseUrl, get } from './utils';
 
 export const route: Route = {
     path: '/hot/:category?',
@@ -27,8 +29,7 @@ async function handler(ctx) {
 
     const url = `${baseUrl}/hot/list/category-${category}`;
 
-    // use Puppeteer due to the obstacle by cloudflare challenge
-    const html = await puppeteerGet(url, cache);
+    const html = await get(url, cache);
 
     const $ = load(html);
     const list = $('div.aw-item');
@@ -37,12 +38,15 @@ async function handler(ctx) {
         title: '品葱 - 精选',
         link: `${baseUrl}/hot/${category === '0' ? '' : `category-${category}`}`,
         item: list
-            .map((_, item) => ({
-                title: $(item).find('h2 a').text().trim(),
+            .toArray()
+            .map((item) => ({
+                title: $(item).find('h2 a').text(),
                 description: $(item).find('div.markitup-box').html(),
                 link: baseUrl + $(item).find('div.mod-head h2 a').attr('href'),
-                pubDate: parseDate($(item).find('div.mod-footer .aw-small-text').text()),
+                // The footer can carry the discussion count after the date, such as `2026-06-07 22 条讨论`
+                pubDate: parseDate($(item).find('div.mod-footer .aw-small-text').text(), 'YYYY-MM-DD'),
             }))
-            .get(),
+            // The list can show the same question twice
+            .filter((item, index, items) => items.findIndex((candidate) => candidate.link === item.link) === index),
     };
 }

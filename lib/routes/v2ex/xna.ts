@@ -1,0 +1,66 @@
+import { load } from 'cheerio';
+
+import { config } from '@/config';
+import type { Route } from '@/types';
+import { ViewType } from '@/types';
+import got from '@/utils/got';
+import { parseRelativeDate } from '@/utils/parse-date';
+import { getRouteLimit } from '@/utils/route-limit';
+
+export const route: Route = {
+    path: '/xna',
+    categories: ['bbs'],
+    view: ViewType.Articles,
+    example: '/v2ex/xna',
+    parameters: {},
+    features: {
+        requireConfig: false,
+        requirePuppeteer: false,
+        antiCrawler: false,
+        supportBT: false,
+        supportPodcast: false,
+        supportScihub: false,
+    },
+    name: 'XNA',
+    maintainers: ['luckyscript'],
+    handler,
+};
+
+async function handler(ctx) {
+    const host = 'https://v2ex.com';
+    const pageUrl = `${host}/xna`;
+
+    const response = await got({
+        method: 'get',
+        url: pageUrl,
+        headers: {
+            'user-agent': config.ua,
+        },
+    });
+
+    const $ = load(response.data);
+    const limit = getRouteLimit(ctx, 50);
+    const items = $('div.xna-entry-main-container')
+        .toArray()
+        .slice(0, limit)
+        .map((dom) => {
+            const link = $(dom).find('.xna-entry-title > a');
+            const author = $(dom).find('.xna-source-author > a').text();
+            const dateText = $(dom).find('.xna-entry-date').text().trim();
+
+            return {
+                title: $(link).text(),
+                link: $(link).attr('href'),
+                author,
+                // Entries older than a day show a month and day without a year, such as `10 月 31 日`
+                pubDate: dateText ? parseRelativeDate(dateText, 'M 月 D 日') : undefined,
+            };
+        });
+
+    return {
+        title: 'V2EX-xna',
+        link: pageUrl,
+        description: 'V2EX-xna',
+        item: items,
+    };
+}

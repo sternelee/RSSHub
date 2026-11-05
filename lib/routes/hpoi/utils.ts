@@ -1,5 +1,7 @@
-import got from '@/utils/got';
 import { load } from 'cheerio';
+
+import InvalidParameterError from '@/errors/types/invalid-parameter';
+import got from '@/utils/got';
 
 const host = 'https://www.hpoi.net';
 
@@ -12,6 +14,10 @@ const MAPs = {
         url: `${host}/hobby/all?order={order}&r18=-1&works={id}`,
         title: '作品周边',
     },
+    overview: {
+        url: `${host}/works/{id}`,
+        title: '周边总览',
+    },
     all: {
         url: `${host}/hobby/all?order={order}&r18=-1`,
         title: '全部周边',
@@ -19,28 +25,32 @@ const MAPs = {
 };
 
 const ProcessFeed = async (type, id, order) => {
-    const link = MAPs[type].url.replace(/{id}/, id).replace(/{order}/, order || 'add');
+    if (order && !['release', 'add', 'hits', 'hits7Day', 'hitsDay', 'rating'].includes(order)) {
+        throw new InvalidParameterError('Invalid order: expected release, add, hits, hits7Day, hitsDay, or rating.');
+    }
+    if (type !== 'all' && !/^[1-9]\d*$/.test(id)) {
+        throw new InvalidParameterError('Invalid id: expected a positive integer.');
+    }
+    const link = MAPs[type].url.replace(/\{id\}/, () => id).replace(/\{order\}/, () => order || 'add');
     const response = await got({
         method: 'get',
         url: link,
-        headers: {
-            Referer: host,
-        },
     });
     const $ = load(response.data);
+
     return {
         title: `Hpoi 手办维基 - ${MAPs[type].title}${id ? ` ${id}` : ''}`,
         link,
         item: $('.hpoi-glyphicons-list li')
-            .map((_index, _item) => {
-                _item = $(_item);
+            .toArray()
+            .map((_item) => {
+                const $_item = $(_item);
                 return {
-                    title: _item.find('.hpoi-detail-grid-title a').text(),
-                    link: host + '/' + _item.find('a').attr('href'),
-                    description: `<img src="${_item.find('img').attr('src').replace('/s/', '/n/')}">${_item.find('.hpoi-detail-grid-info').html().replaceAll('span>', 'p>')}`,
+                    title: $_item.find('.hpoi-detail-grid-title a').text(),
+                    link: new URL($_item.find('a').attr('href')!, link).href,
+                    description: `<img src="${$_item.find('img').attr('src')!.replace('/s/', '/n/')}">${$_item.find('.hpoi-detail-grid-info').html()!.replaceAll('span>', 'p>')}`,
                 };
-            })
-            .get(),
+            }),
     };
 };
 
